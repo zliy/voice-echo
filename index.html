@@ -128,9 +128,9 @@
           
 
           if (navigator.permissions) {
+            this.init()
             navigator.permissions.query({ name: 'microphone' }).then(v => {
               if (v.state === 'granted') {
-                this.init()
               }
               this.permission = v.state
               console.log('microphone permission: ', v.state)
