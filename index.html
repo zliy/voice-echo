@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <script src="./media-recorder-polyfill.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        -webkit-user-select: none;
+        user-select: none;
+        margin: 0;
+      }
+      #record {
+        height: 130px;
+        width: 130px;
+        /* max-height: 130px;
+            max-width: 130px; */
+        border-radius: 50%;
+        background: red no-repeat url(./microphone.png) center/60%;
+        position: fixed;
+        bottom: 20vw;
+        left: 0;
+        right: 0;
+        margin: auto;
+
+        box-shadow: 0 0.5px 3px #929292, 0 3px 16px #bbb;
+      }
+      #record span {
+        color: #aaa;
+        position: absolute;
+        top: 112%;
+        text-align: center;
+        left: 0;
+        right: 0;
+        margin: auto;
+      }
+      #record.recording {
+        background-color: green;
+      }
+      h1 {
+        font-size: 40px;
+        color: #333;
+        margin-top: 20vw;
+        text-align: center;
+      }
+      .tip-fullscreen {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        justify-content: center;
+        z-index: 100;
+      }
+      .btn {
+        background-color: rgb(22, 144, 182);
+        font-size: 16px;
+        padding: 8px 16px;
+        min-width: 60px;
+        text-align: center;
+        border-radius: 5px;
+
+        margin: 16px;
+        box-shadow: 0px 1px 5px 0px rgba(0, 0, 0, 0.2),
+          0px 2px 2px 0px rgba(0, 0, 0, 0.14),
+          0px 3px 1px -2px rgba(0, 0, 0, 0.12);
+      }
+
+      .history {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <h1>Echo</h1>
+      <!-- <div v-if="permission === 'denied'" class="tip-fullscreen">
+        需要开启麦克风权限才能使用 😕
+      </div>
+      <div v-if="permission === 'prompt'" class="tip-fullscreen">
+        Echo 需要使用麦克风 😘
+        <div class="btn" @click="init">开启</div>
+      </div> -->
+      <div
+        id="record"
+        class="button"
+        @touchstart="toggleRecord"
+        @touchend="noAutoPlay || toggleRecord($event)"
+        @mousedown="toggleRecord"
+        @mouseup="noAutoPlay || toggleRecord($event)"
+        :class="{recording: recording}"
+      >
+        <span>
+          {{ recording ? '正在录音' : '按住按钮说话' }}
+          {{ noAutoPlay ? 'no' : 'yes' }}
+        </span>
+      </div>
+      <div class="history">
+
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script>
+      new Vue({
+        el: '#app',
+        data: {
+          recording: false,
+          permission: '',
+          noAutoPlay: undefined
+        },
+        mounted() {
+          // this.noAutoPlay = /iPad|iPhone|iPod|Safari/.test(navigator.userAgent)
+
+          this.detectAutoplay()
+          setTimeout(() => {
+          }, 1000)
+          
+
+          if (navigator.permissions) {
+            navigator.permissions.query({ name: 'microphone' }).then(v => {
+              if (v.state === 'granted') {
+                this.init()
+              }
+              this.permission = v.state
+              console.log('microphone permission: ', v.state)
+            })
+          } else {
+            this.init()
+          }
+          window.oncontextmenu = e => e.preventDefault()
+
+          window.addEventListener('keydown', e => {
+            if (!e.repeat && e.code == 'Space') {
+              this.toggleRecord(e)
+              e.preventDefault();
+            }
+          })
+          window.addEventListener('keyup', e => {
+            if (!e.repeat && e.code == 'Space') {
+              this.toggleRecord(e)
+              e.preventDefault();
+            }
+          })
+          window.addEventListener('keypress', e => {
+            if (!e.repeat && e.code == 'KeyR') {
+              new Audio(this.audioBase64, ).play()
+              e.preventDefault();
+            }
+          })                  
+        },
+        methods: {
+          detectAutoplay() {
+            const mp3 =
+              'data:audio/mpeg;base64,/+MYxAAAAANIAUAAAASEEB/jwOFM/0MM/90b/+RhST//w4NFwOjf///PZu////9lns5GFDv//l9GlUIEEIAAAgIg8Ir/JGq3/+MYxDsLIj5QMYcoAP0dv9HIjUcH//yYSg+CIbkGP//8w0bLVjUP///3Z0x5QCAv/yLjwtGKTEFNRTMuOTeqqqqqqqqqqqqq/+MYxEkNmdJkUYc4AKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq'
+            const audio = new Audio(mp3)
+            audio.volume = 0.01
+            audio.play().then(
+              () => {
+                this.noAutoPlay = false
+              },
+              (e) => {
+                this.noAutoPlay = true
+                throw e
+              }
+            )
+          },
+          toggleRecord(e) {
+            if (e.type === 'touchend') {
+              e.preventDefault()
+            }
+            const mediaRecorder = this.mediaRecorder
+            if (!mediaRecorder) {
+              throw 'error'
+            }
+            if (mediaRecorder.state === 'recording') {
+              mediaRecorder.stop()
+              this.recording = false
+              console.log('stop')
+
+              // setTimeout(() => {
+              //   // debugger
+
+              // })
+              setTimeout(() => {
+                console.log('read chunk')
+                var blob = new Blob(this.chunks, { type: 'audio/wav' })
+                const reader = new FileReader()
+                reader.onload = () => {
+                  this.audioBase64 = reader.result
+                  console.log(reader.result.slice(0,30))
+                }
+                reader.readAsDataURL(blob)
+              })
+
+              setTimeout(() => {
+                console.log('read base64')
+                const el = document.createElement('audio')
+                el.src = this.audioBase64
+                el.controls = true
+                document.querySelector('.history').prepend(el)
+                new Audio(this.audioBase64).play()
+
+                // new Audio(
+                //   'https://d27ucmmhxk51xv.cloudfront.net/media/english/ameProns/damp1.mp3?version=1.1.86'
+                //   ).play()
+              }, 500)
+            } else {
+              this.chunks = []
+              mediaRecorder.start()
+              this.recording = true
+              console.log('start')
+            }
+          },
+          init() {
+            let onSuccess = stream => {
+              this.permission = 'granted'
+
+              console.log('getUserMedia success')
+              this.chunks = []
+
+              const mediaRecorder = new MediaRecorder(stream)
+              mediaRecorder.addEventListener('stop', e => {
+                console.log('stop event')
+
+                // this.chunks = chunks
+
+                // var blob = new Blob(chunks, { type: 'audio/ogg' })
+                // this.audioURL = window.URL.createObjectURL(blob)
+                // new Audio('aud')
+
+              })
+              mediaRecorder.addEventListener('dataavailable', e => {
+                console.log('push chunks')
+                this.chunks.push(e.data)
+              })
+
+              this.mediaRecorder = mediaRecorder
+            }
+            let onError = () => {
+              this.permission = 'denied'
+              console.log('getUserMedia fail')
+            }
+            navigator.mediaDevices
+              .getUserMedia({ audio: true })
+              .then(onSuccess, onError)
+          }
+        }
+      })
+    </script>
+    <script>
+      document.querySelector('h1').addEventListener('touchend', () => {
+        console.log('touchend')
+        new Audio(
+          'https://d27ucmmhxk51xv.cloudfront.net/media/english/ameProns/damp1.mp3?version=1.1.86'
+        ).play()
+      })
+
+      const mp3 =
+        'data:audio/mpeg;base64,/+MYxAAAAANIAUAAAASEEB/jwOFM/0MM/90b/+RhST//w4NFwOjf///PZu////9lns5GFDv//l9GlUIEEIAAAgIg8Ir/JGq3/+MYxDsLIj5QMYcoAP0dv9HIjUcH//yYSg+CIbkGP//8w0bLVjUP///3Z0x5QCAv/yLjwtGKTEFNRTMuOTeqqqqqqqqqqqqq/+MYxEkNmdJkUYc4AKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq'
+
+      // const el = document.createElement('audio')
+      // el.src = mp3
+      // el.controls = true
+      // document.body.appendChild(el)
+    </script>
+  </body>
+</html>
